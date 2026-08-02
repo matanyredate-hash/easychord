@@ -3,60 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Easychords - פישוט אקורדים וקאפו לגיטרה</title>
-  <!-- Pico.css לעיצוב נקי, מודרני וקליל -->
+  <title>Easychords - פישוט וארגון אקורדים</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; padding-bottom: 80px; }
     .container { max-width: 900px; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; }
     .toolbar button { margin-bottom: 0; width: auto; }
-    .toolbar label { display: flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; }
     
-    /* פונט מונוספייס ששומר על מיקום האקורדים בדיוק מעל הטקסט */
+    /* תצוגת השיר - פונט מונוספייס שמבטיח שהאקורדים יישארו בדיוק מעל המילים */
     #song-output {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 1.1rem;
-      line-height: 1.8;
-      white-space: pre-wrap;
+      font-size: 1.15rem;
+      line-height: 2;
+      white-space: pre;
       background: #1e1e1e;
       color: #d4d4d4;
-      padding: 20px;
+      padding: 25px;
       border-radius: 8px;
       overflow-x: auto;
+      direction: ltr; /* LTR מבטיח שרווחים ואקורדים באנגלית יישארו מיושרים */
+      text-align: right;
+    }
+
+    .chord-line {
+      color: #569cd6;
+      font-weight: bold;
+      height: 1.4em;
+    }
+    .text-line {
+      color: #e0e0e0;
+      margin-bottom: 1em;
     }
 
     .chord {
-      color: #569cd6;
-      font-weight: bold;
       cursor: pointer;
       text-decoration: underline dotted;
     }
     .chord:hover { color: #4ec9b0; }
 
-    /* פופ-אפ דיאגרמת אקורד */
-    .modal-box { text-align: center; }
     .fretboard { display: inline-block; margin: 15px 0; font-family: monospace; font-size: 1.2rem; background: #2d2d2d; padding: 15px; border-radius: 6px; }
-    
     .recommend-badge { background: #2e7d32; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
   <main class="container">
-    <h2>🎸 Easychords - פישוט אקורדים וקאפו</h2>
+    <h2>🎸 Easychords - מעבד אקורדים חכם</h2>
     
-    <!-- תיבת קלט לשיר -->
     <details open>
-      <summary>הכנס את הטקסט והאקורדים כאן</summary>
-      <textarea id="song-input" rows="8" placeholder="הדבק כאן שיר עם אקורדים... לדוגמה:
-F#m         Bbm          C#maj7
+      <summary>הכנס/הדבק את השיר כאן</summary>
+      
+      <!-- בחירת פורמט הדבקה -->
+      <div style="margin-bottom: 10px;">
+        <label><small>פורמט הדבקה:</small></label>
+        <select id="paste-format" onchange="render()">
+          <option value="standard">אקורדים בשורה נפרדת מעל המילים (רגיל)</option>
+          <option value="bracketed">אקורדים בתוך בסוגריים בגוף הטקסט [Am]</option>
+        </select>
+      </div>
+
+      <textarea id="song-input" rows="8" placeholder="לדוגמה (פורמט רגיל):
+Am          G            C
 כשאני מנגן גיטרה האקורדים קשים
-D/F#        G#m7
-אבל עכשיו הכל נהיה קל"></textarea>
+
+או לדוגמה (פורמט סוגריים):
+כשאני מנגן [Am] גיטרה האקורדים [G] קשים [C]"></textarea>
     </details>
 
-    <!-- סרגל כלים בולט -->
+    <!-- סרגל כלים -->
     <div class="toolbar">
       <div>
         <small>טרנספוזיציה:</small><br>
@@ -67,7 +82,7 @@ D/F#        G#m7
 
       <div>
         <small>קאפו (Capo):</small><br>
-        <select id="capo-select" onchange="applyCapo()" style="margin-bottom:0;">
+        <select id="capo-select" onchange="render()" style="margin-bottom:0;">
           <option value="0">ללא קאפו</option>
           <option value="1">סריג 1</option>
           <option value="2">סריג 2</option>
@@ -77,7 +92,7 @@ D/F#        G#m7
         </select>
       </div>
 
-      <label>
+      <label style="display:flex; align-items:center; gap:5px; margin-bottom:0; cursor:pointer;">
         <input type="checkbox" id="simplify-check" onchange="render()">
         <span>פישוט אקורדים</span>
       </label>
@@ -88,20 +103,20 @@ D/F#        G#m7
     <!-- גלילה אוטומטית -->
     <div class="toolbar" style="background: rgba(0, 150, 255, 0.1);">
       <button id="scroll-btn" onclick="toggleScroll()" class="secondary">▶ הפעל גלילה אוטומטית</button>
-      <label>
+      <label style="display:flex; align-items:center; gap:8px; margin-bottom:0;">
         מהירות:
         <input type="range" id="scroll-speed" min="1" max="10" value="3">
       </label>
       <span id="recommend-msg" class="recommend-badge" style="display:none;"></span>
     </div>
 
-    <!-- תצוגת השיר -->
+    <!-- אזור הצגת השיר המסודר -->
     <div id="song-output"></div>
   </main>
 
-  <!-- דיאלוג לצפייה בדיאגרמת אקורד -->
+  <!-- דיאלוג דיאגרמת אקורדים -->
   <dialog id="chord-modal">
-    <article class="modal-box">
+    <article style="text-align: center;">
       <h3 id="modal-chord-name"></h3>
       <div id="modal-chord-diagram" class="fretboard"></div>
       <footer>
@@ -111,11 +126,8 @@ D/F#        G#m7
   </dialog>
 
   <script>
-    // --- לוגיקת תאוריית המוזיקה ---
     const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const BARE_CHORDS = ['F', 'F#', 'B', 'Bm', 'Fm', 'F#m', 'C#', 'C#m', 'G#', 'G#m', 'D#', 'D#m'];
-
-    // מאגר תרשימי גיטרה לאקורדים נפוצים (מיתר 6 עד 1, x = חסום, 0 = פתוח)
     const GUITAR_TABS = {
       'C': 'x 3 2 0 1 0', 'G': '3 2 0 0 0 3', 'Am': 'x 0 2 2 1 0',
       'Em': '0 2 2 0 0 0', 'D': 'x x 0 2 3 2', 'Dm': 'x x 0 2 3 1',
@@ -153,28 +165,70 @@ D/F#        G#m7
       return `${newRoot}${quality}${newBass}`;
     }
 
-    // --- עיבוד הטקסט והתצוגה ---
+    const chordRegex = /\b[A-G][#b]?(?:maj|min|m|dim|aug|sus|add|\d)*?(?:\/[A-G][#b]?)?\b/g;
+
+    // --- מנוע סידור ויישור השורות והאקורדים ---
     function render() {
       const input = document.getElementById('song-input').value;
+      const format = document.getElementById('paste-format').value;
       const capo = parseInt(document.getElementById('capo-select').value);
       const simplify = document.getElementById('simplify-check').checked;
-      
-      // חישוב השינוי הכולל (סולם - קאפו)
       const totalSemitones = currentOffset - capo;
 
-      // זיהוי אקורדים בשורה (כל מילה שמורכבת מאותיות אקורד בלבד)
-      const chordRegex = /\b[A-G][#b]?(?:maj|min|m|dim|aug|sus|add|\d)*?(?:\/[A-G][#b]?)?\b/g;
+      let htmlResult = '';
 
-      const lines = input.split('\n');
-      const outputLines = lines.map(line => {
-        // אם השורה היא שורת אקורדים
-        return line.replace(chordRegex, (chord) => {
-          const processed = processChord(chord, totalSemitones, simplify);
-          return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+      if (format === 'bracketed') {
+        // טיפול בהדבקה של אקורדים בסוגריים [Am]
+        const lines = input.split('\n');
+        lines.forEach(line => {
+          let textLine = '';
+          let chordLine = '';
+          let pos = 0;
+
+          // פירוק השורה לפי סוגריים
+          const parts = line.split(/\[(.*?)\]/);
+          for (let i = 0; i < parts.length; i++) {
+            if (i % 2 === 1) { // זה אקורד בתוך סוגריים
+              const rawChord = parts[i];
+              const processed = processChord(rawChord, totalSemitones, simplify);
+              const chordSpan = `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+              
+              // מוסיפים את האקורד במיקום המדויק
+              while (chordLine.length < textLine.length) chordLine += ' ';
+              chordLine += chordSpan;
+            } else { // זה טקסט רגיל
+              textLine += parts[i];
+            }
+          }
+
+          if (chordLine.trim().length > 0) {
+            htmlResult += `<div class="chord-line">${chordLine}</div>`;
+          }
+          htmlResult += `<div class="text-line">${textLine || ' '}</div>`;
         });
-      });
 
-      document.getElementById('song-output').innerHTML = outputLines.join('\n');
+      } else {
+        // טיפול בהדבקה רגילה (שורת אקורדים לחוד, שורת מילים לחוד)
+        const lines = input.split('\n');
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const isChordLine = line.replace(chordRegex, '').trim() === '';
+
+          if (isChordLine && line.trim().length > 0) {
+            // עיבוד שורת אקורדים והחלפתם באקורדים המעובדים
+            const processedLine = line.replace(chordRegex, (chord) => {
+              const processed = processChord(chord, totalSemitones, simplify);
+              return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+            });
+            htmlResult += `<div class="chord-line">${processedLine}</div>`;
+          } else {
+            htmlResult += `<div class="text-line">${line || ' '}</div>`;
+          }
+        }
+      }
+
+      document.getElementById('song-output').innerHTML = htmlResult;
     }
 
     function changeKey(delta) {
@@ -183,12 +237,8 @@ D/F#        G#m7
       render();
     }
 
-    function applyCapo() { render(); }
-
-    // --- פיצ'ר 1: אלגוריתם המלצת קאפו אוטומטי ---
     function autoCapo() {
       const input = document.getElementById('song-input').value;
-      const chordRegex = /\b[A-G][#b]?(?:maj|min|m|dim|aug|sus|add|\d)*?(?:\/[A-G][#b]?)?\b/g;
       const chords = input.match(chordRegex) || [];
 
       if (chords.length === 0) return;
@@ -196,7 +246,6 @@ D/F#        G#m7
       let bestCapo = 0;
       let minBareCount = Infinity;
 
-      // בדיקת קאפו מ-0 עד 5
       for (let capo = 0; capo <= 5; capo++) {
         let bareCount = 0;
         chords.forEach(c => {
@@ -213,11 +262,10 @@ D/F#        G#m7
       document.getElementById('capo-select').value = bestCapo;
       const msg = document.getElementById('recommend-msg');
       msg.style.display = 'inline-block';
-      msg.innerText = `💡 מומלץ: קאפו בסריג ${bestCapo} (מפחית אקורדי בארה)`;
+      msg.innerText = `💡 מומלץ: קאפו בסריג ${bestCapo}`;
       render();
     }
 
-    // --- פיצ'ר 2: דיאגרמת אקורדים ---
     function showDiagram(chord) {
       document.getElementById('modal-chord-name').innerText = `אקורד ${chord}`;
       const tab = GUITAR_TABS[chord] || 'x x 0 2 3 2 (תרשים כללי)';
@@ -225,7 +273,6 @@ D/F#        G#m7
       document.getElementById('chord-modal').showModal();
     }
 
-    // --- פיצ'ר 3: גלילה אוטומטית ---
     function toggleScroll() {
       const btn = document.getElementById('scroll-btn');
       if (scrollInterval) {
@@ -242,7 +289,7 @@ D/F#        G#m7
     }
 
     document.getElementById('song-input').addEventListener('input', render);
-    render(); // הרצה ראשונית
+    render();
   </script>
 </body>
 </html>
