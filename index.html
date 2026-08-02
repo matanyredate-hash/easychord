@@ -11,36 +11,52 @@
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; }
     .toolbar button { margin-bottom: 0; width: auto; }
     
-    /* תצוגת השיר - פונט מונוספייס שמבטיח שהאקורדים יישארו בדיוק מעל המילים */
+    /* תצוגת השיר - יישור והפרדה בין עברית לאנגליזית */
     #song-output {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 1.15rem;
-      line-height: 2;
-      white-space: pre;
+      font-size: 1.2rem;
+      line-height: 2.2;
+      white-space: pre-wrap;
       background: #1e1e1e;
       color: #d4d4d4;
       padding: 25px;
       border-radius: 8px;
       overflow-x: auto;
-      direction: ltr; /* LTR מבטיח שרווחים ואקורדים באנגלית יישארו מיושרים */
+      direction: rtl;
       text-align: right;
     }
 
     .chord-line {
       color: #569cd6;
       font-weight: bold;
-      height: 1.4em;
-    }
-    .text-line {
-      color: #e0e0e0;
-      margin-bottom: 1em;
+      min-height: 1.5em;
+      direction: ltr;
+      text-align: right;
     }
 
-    .chord {
-      cursor: pointer;
-      text-decoration: underline dotted;
+    .text-line {
+      color: #e0e0e0;
+      margin-bottom: 0.8em;
     }
-    .chord:hover { color: #4ec9b0; }
+
+    /* תיבת אקורד מבודדת שלא חוצה מילים */
+    .chord {
+      display: inline-block;
+      direction: ltr;
+      unicode-bidi: isolate;
+      color: #4ec9b0;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0 4px;
+      margin: 0 2px;
+      background: rgba(78, 201, 176, 0.1);
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    .chord:hover { 
+      background: rgba(78, 201, 176, 0.3);
+      color: #ffffff;
+    }
 
     .fretboard { display: inline-block; margin: 15px 0; font-family: monospace; font-size: 1.2rem; background: #2d2d2d; padding: 15px; border-radius: 6px; }
     .recommend-badge { background: #2e7d32; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; }
@@ -54,21 +70,20 @@
     <details open>
       <summary>הכנס/הדבק את השיר כאן</summary>
       
-      <!-- בחירת פורמט הדבקה -->
       <div style="margin-bottom: 10px;">
         <label><small>פורמט הדבקה:</small></label>
         <select id="paste-format" onchange="render()">
-          <option value="standard">אקורדים בשורה נפרדת מעל המילים (רגיל)</option>
-          <option value="bracketed">אקורדים בתוך בסוגריים בגוף הטקסט [Am]</option>
+          <option value="bracketed">אקורדים בסוגריים [F] או מופרדים ברווח</option>
+          <option value="standard">שורת אקורדים נפרדת מעל המילים</option>
         </select>
       </div>
 
-      <textarea id="song-input" rows="8" placeholder="לדוגמה (פורמט רגיל):
-Am          G            C
-כשאני מנגן גיטרה האקורדים קשים
+      <textarea id="song-input" rows="8" placeholder="לדוגמה:
+הלוו [F] שלא יגמר [Am] 
 
-או לדוגמה (פורמט סוגריים):
-כשאני מנגן [Am] גיטרה האקורדים [G] קשים [C]"></textarea>
+או בשורות נפרדות:
+F           Am
+הלוו שלא יגמר"></textarea>
     </details>
 
     <!-- סרגל כלים -->
@@ -110,11 +125,10 @@ Am          G            C
       <span id="recommend-msg" class="recommend-badge" style="display:none;"></span>
     </div>
 
-    <!-- אזור הצגת השיר המסודר -->
+    <!-- תצוגת השיר -->
     <div id="song-output"></div>
   </main>
 
-  <!-- דיאלוג דיאגרמת אקורדים -->
   <dialog id="chord-modal">
     <article style="text-align: center;">
       <h3 id="modal-chord-name"></h3>
@@ -167,7 +181,6 @@ Am          G            C
 
     const chordRegex = /\b[A-G][#b]?(?:maj|min|m|dim|aug|sus|add|\d)*?(?:\/[A-G][#b]?)?\b/g;
 
-    // --- מנוע סידור ויישור השורות והאקורדים ---
     function render() {
       const input = document.getElementById('song-input').value;
       const format = document.getElementById('paste-format').value;
@@ -178,45 +191,29 @@ Am          G            C
       let htmlResult = '';
 
       if (format === 'bracketed') {
-        // טיפול בהדבקה של אקורדים בסוגריים [Am]
         const lines = input.split('\n');
         lines.forEach(line => {
-          let textLine = '';
-          let chordLine = '';
-          let pos = 0;
+          // זיהוי אקורדים בסוגריים [F] או אקורדים בודדים שמנותקים ברווחים
+          let processedLine = line.replace(/\[(.*?)\]/g, (m, chord) => {
+            const processed = processChord(chord.trim(), totalSemitones, simplify);
+            return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+          });
 
-          // פירוק השורה לפי סוגריים
-          const parts = line.split(/\[(.*?)\]/);
-          for (let i = 0; i < parts.length; i++) {
-            if (i % 2 === 1) { // זה אקורד בתוך סוגריים
-              const rawChord = parts[i];
-              const processed = processChord(rawChord, totalSemitones, simplify);
-              const chordSpan = `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
-              
-              // מוסיפים את האקורד במיקום המדויק
-              while (chordLine.length < textLine.length) chordLine += ' ';
-              chordLine += chordSpan;
-            } else { // זה טקסט רגיל
-              textLine += parts[i];
-            }
-          }
+          // טיפול באקורדים חופשיים בין מילים
+          processedLine = processedLine.replace(chordRegex, (chord) => {
+            const processed = processChord(chord, totalSemitones, simplify);
+            return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+          });
 
-          if (chordLine.trim().length > 0) {
-            htmlResult += `<div class="chord-line">${chordLine}</div>`;
-          }
-          htmlResult += `<div class="text-line">${textLine || ' '}</div>`;
+          htmlResult += `<div class="text-line">${processedLine || ' '}</div>`;
         });
-
       } else {
-        // טיפול בהדבקה רגילה (שורת אקורדים לחוד, שורת מילים לחוד)
         const lines = input.split('\n');
-        
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const isChordLine = line.replace(chordRegex, '').trim() === '';
 
           if (isChordLine && line.trim().length > 0) {
-            // עיבוד שורת אקורדים והחלפתם באקורדים המעובדים
             const processedLine = line.replace(chordRegex, (chord) => {
               const processed = processChord(chord, totalSemitones, simplify);
               return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
@@ -240,7 +237,6 @@ Am          G            C
     function autoCapo() {
       const input = document.getElementById('song-input').value;
       const chords = input.match(chordRegex) || [];
-
       if (chords.length === 0) return;
 
       let bestCapo = 0;
