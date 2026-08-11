@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Easychords - מעבד אקורדים חכם</title>
+  <title>Easychords - מעבד אקורדים מתקדם</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; padding-bottom: 80px; }
@@ -11,10 +11,13 @@
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; }
     .toolbar button { margin-bottom: 0; width: auto; }
     
-    /* תצוגת השיר בשיטת הבלוקים הנקיים */
     #song-output {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.25rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
       background: #1e1e1e;
-      color: #d4d4d4;
+      color: #ffffff;
       padding: 25px;
       border-radius: 8px;
       overflow-x: auto;
@@ -22,80 +25,70 @@
       text-align: right;
     }
 
-    .song-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 12px;
-      margin-bottom: 1.5em;
-      align-items: flex-end;
-    }
-
-    /* כרטיסיה של מילה אחת והאקורד שמעליה */
-    .word-card {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      white-space: nowrap;
-    }
-
-    .chord-slot {
-      font-family: 'Courier New', Courier, monospace;
+    .chord-line {
+      color: #4ec9b0;
       font-weight: bold;
-      min-height: 1.4em;
       direction: ltr;
-      font-size: 1.1rem;
+      text-align: right;
+      min-height: 1.2em;
+    }
+
+    .text-line {
+      color: #ffffff;
+      margin-bottom: 0.8em;
     }
 
     .chord {
       color: #4ec9b0;
+      font-weight: bold;
       cursor: pointer;
-      padding: 1px 6px;
-      background: rgba(78, 201, 176, 0.15);
-      border-radius: 4px;
-      text-decoration: none;
-      display: inline-block;
     }
-    .chord:hover { 
-      background: rgba(78, 201, 176, 0.35);
-      color: #ffffff;
-    }
-
-    .text-slot {
-      font-size: 1.2rem;
-      color: #ffffff;
-    }
+    .chord:hover { text-decoration: underline; color: #569cd6; }
 
     .fretboard { display: inline-block; margin: 15px 0; font-family: monospace; font-size: 1.2rem; background: #2d2d2d; padding: 15px; border-radius: 6px; }
     .recommend-badge { background: #2e7d32; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; }
+    .experimental-box { border: 1px dashed #0096ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
   </style>
 </head>
 <body>
 
   <main class="container">
-    <h2>🎸 Easychords - מעבד אקורדים מוגן מבאגים</h2>
-    
+    <h2>🎸 Easychords - מעבד אקורדים</h2>
+
+    <!-- אפשרות ניסיונית: טעינה מכתובת אתר -->
+    <div class="experimental-box">
+      <small>🧪 <strong>אופציה ניסיונית:</strong> טעינת שיר מכתובת אתר (URL)</small>
+      <div style="display: flex; gap: 10px; margin-top: 5px;">
+        <input type="url" id="url-input" placeholder="הכנס קישור לדף שיר..." style="margin-bottom: 0;">
+        <button onclick="fetchFromUrl()" class="secondary" style="white-space: nowrap;">טען אתר</button>
+      </div>
+      <small id="url-status" style="color: #aaa;"></small>
+    </div>
+
     <details open>
-      <summary>הכנס/הדבק את השיר כאן</summary>
+      <summary>תוכן השיר (הדבקה / עריכה)</summary>
       
       <div style="margin-bottom: 10px;">
-        <label><small>פורמט הדבקה:</small></label>
+        <label><small>פורמט הקלט:</small></label>
         <select id="paste-format" onchange="render()">
-          <option value="bracketed">אקורדים בסוגריים [F] או מופרדים</option>
-          <option value="standard">שורת אקורדים לחוד ושורת מילים לחוד</option>
+          <option value="bracketed">אקורדים בסוגריים [F] בתוך הטקסט</option>
+          <option value="standard">שורת אקורדים מעל שורת מילים</option>
         </select>
       </div>
 
-      <textarea id="song-input" rows="8" placeholder="דוגמה לפורמט סוגריים:
-הלוו [F] שלא יגמר [Am] לעולם
+      <textarea id="song-input" rows="8" placeholder="הדבק כאן את השיר...
+לדוגמה:
+הלוו [F] שלא יגמר [Am] 
 
-דוגמה לפורמט רגיל:
+או בשורות נפרדות:
 F           Am
-הלוו שלא יגמר לעולם"></textarea>
+הלוו שלא יגמר"></textarea>
     </details>
 
+    <!-- סרגל כלים -->
     <div class="toolbar">
       <div>
-        <small>טרנספוזיציה:</small><br>
+        <small>טרנספוזיציה (שינוי טון):</small><br>
         <button onclick="changeKey(-1)" class="outline">-1 טון</button>
         <span id="key-offset" style="font-weight: bold; padding: 0 5px;">0</span>
         <button onclick="changeKey(1)" class="outline">+1 טון</button>
@@ -118,9 +111,10 @@ F           Am
         <span>פישוט אקורדים</span>
       </label>
 
-      <button onclick="autoCapo()" class="contrast" style="margin-right: auto;">🪄 המלץ על קאפו קל</button>
+      <button onclick="autoCapo()" class="contrast" style="margin-right: auto;">🪄 המלץ על קאפו מתאים</button>
     </div>
 
+    <!-- גלילה אוטומטית -->
     <div class="toolbar" style="background: rgba(0, 150, 255, 0.1);">
       <button id="scroll-btn" onclick="toggleScroll()" class="secondary">▶ הפעל גלילה אוטומטית</button>
       <label style="display:flex; align-items:center; gap:8px; margin-bottom:0;">
@@ -130,6 +124,7 @@ F           Am
       <span id="recommend-msg" class="recommend-badge" style="display:none;"></span>
     </div>
 
+    <!-- תצוגת השיר הסטייליסטית -->
     <div id="song-output"></div>
   </main>
 
@@ -193,69 +188,54 @@ F           Am
       const totalSemitones = currentOffset - capo;
 
       let htmlResult = '';
+      const lines = input.split('\n');
 
       if (format === 'bracketed') {
-        const lines = input.split('\n');
         lines.forEach(line => {
-          if (!line.trim()) {
-            htmlResult += '<div style="height: 1em;"></div>';
-            return;
-          }
+          let chordLine = '';
+          let textLine = '';
+          let i = 0;
 
-          htmlResult += '<div class="song-row">';
-          
-          // מפרק את השורה למילים וסוגריים
-          const tokens = line.split(/(\[.*?\]|\s+)/);
-          let currentChord = '';
-
-          tokens.forEach(token => {
-            if (!token) return;
-
-            if (token.startsWith('[') && token.endsWith(']')) {
-              // שמירת האקורד למילה הבאה
-              const rawChord = token.slice(1, -1).trim();
-              currentChord = processChord(rawChord, totalSemitones, simplify);
-            } else if (token.trim().length > 0) {
-              // מילה רגילה - יצירת כרטיסיה
-              const chordHtml = currentChord ? `<span class="chord" onclick="showDiagram('${currentChord}')">${currentChord}</span>` : '';
-              htmlResult += `
-                <div class="word-card">
-                  <div class="chord-slot">${chordHtml}</div>
-                  <div class="text-slot">${token}</div>
-                </div>
-              `;
-              currentChord = ''; // איפוס
+          while (i < line.length) {
+            if (line[i] === '[') {
+              let end = line.indexOf(']', i);
+              if (end !== -1) {
+                let rawChord = line.substring(i + 1, end).trim();
+                let processed = processChord(rawChord, totalSemitones, simplify);
+                let chordSpan = `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+                
+                chordLine += chordSpan;
+                i = end + 1;
+                continue;
+              }
             }
-          });
 
-          // אם נשאר אקורד בסוף השורה ללא מילה
-          if (currentChord) {
-            htmlResult += `
-              <div class="word-card">
-                <div class="chord-slot"><span class="chord" onclick="showDiagram('${currentChord}')">${currentChord}</span></div>
-                <div class="text-slot">&nbsp;</div>
-              </div>
-            `;
+            let char = line[i];
+            textLine += char;
+            if (chordLine.replace(/<[^>]*>/g, '').length < textLine.length) {
+              chordLine += ' ';
+            }
+            i++;
           }
 
-          htmlResult += '</div>';
+          if (chordLine.trim().length > 0) {
+            htmlResult += `<div class="chord-line">${chordLine}</div>`;
+          }
+          htmlResult += `<div class="text-line">${textLine || '&nbsp;'}</div>`;
         });
-
       } else {
-        // פורמט רגיל - שורות אקורדים ומילים לחוד
-        const lines = input.split('\n');
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const isChordLine = line.replace(chordRegex, '').trim() === '';
 
           if (isChordLine && line.trim().length > 0) {
-            let processedLine = line.replace(chordRegex, (chord) => {
-              const processed = processChord(chord, totalSemitones, simplify);
-              return `<span class="chord" onclick="showDiagram('${processed}')">${processed}</span>`;
+            let processed = line.replace(chordRegex, (chord) => {
+              let p = processChord(chord, totalSemitones, simplify);
+              return `<span class="chord" onclick="showDiagram('${p}')">${p}</span>`;
             });
-            htmlResult += `<div class="chord-slot" style="margin-bottom:0.2em;">${processedLine}</div>`;
+            htmlResult += `<div class="chord-line">${processed}</div>`;
           } else {
-            htmlResult += `<div class="text-slot" style="margin-bottom:1em;">${line || '&nbsp;'}</div>`;
+            htmlResult += `<div class="text-line">${line || '&nbsp;'}</div>`;
           }
         }
       }
@@ -316,6 +296,52 @@ F           Am
         scrollInterval = setInterval(() => window.scrollBy(0, 1), speed * 10);
         btn.innerText = '⏸ השהה גלילה';
         btn.classList.replace('secondary', 'primary');
+      }
+    }
+
+    /* פונקציה ניסיונית לשליפת תוכן מקישור (URL) */
+    async function fetchFromUrl() {
+      const urlInput = document.getElementById('url-input').value.trim();
+      const status = document.getElementById('url-status');
+      
+      if (!urlInput) {
+        status.innerText = 'נא להכניס כתובת תקינה.';
+        return;
+      }
+
+      status.innerText = 'מנסה שטוען תוכן מהאתר...';
+
+      try {
+        // שימוש ב-Proxy לעקיפת חסימות CORS בדפדפן
+        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(urlInput);
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) throw new Error('שגיאה בגישה לשרת הפרוקסי');
+
+        const data = await response.json();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data.contents, 'text/html');
+
+        // חיפוש טקסט מתוך תגיות שיר נפוצות (pre, article, code, main)
+        let extractedText = '';
+        const targetElements = doc.querySelectorAll('pre, article, .chords, .song-content');
+
+        if (targetElements.length > 0) {
+          targetElements.forEach(el => extractedText += el.innerText + '\n');
+        } else {
+          extractedText = doc.body.innerText;
+        }
+
+        if (extractedText.trim()) {
+          document.getElementById('song-input').value = extractedText.trim();
+          status.innerText = 'התוכן נטען בהצלחה!';
+          render();
+        } else {
+          status.innerText = 'לא נשלף טקסט תקין מהעמוד.';
+        }
+      } catch (err) {
+        console.error(err);
+        status.innerText = 'שגיאה בטעינת האתר (יתכן שהאתר חוסם גישה חיצונית).';
       }
     }
 
